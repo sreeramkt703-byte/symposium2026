@@ -1,0 +1,3 @@
+[build]
+  command = "cd symposium2026-main/web && npm install && npm run build"
+  publish = "symposium2026-main/web/dist"
