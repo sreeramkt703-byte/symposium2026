@@ -1,3 +1,7 @@
 [build]
-  command = "cd symposium2026-main/web && npm install && npm run build"
-  publish = "symposium2026-main/web/dist"
+  base = "symposium2026-main/web"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
