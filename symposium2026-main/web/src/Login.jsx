@@ -36,7 +36,7 @@ export default function Login({ onStart }) {
       <ul className="rules">
         <li>Duration: 60 minutes. The timer starts when you press Start.</li>
         <li>The exam runs in fullscreen.</li>
-        <li>Alt+Tab, Win key, Esc or switching tabs locks the screen. The invigilator password is needed to continue.</li>
+        <li>Alt+Tab, Win key, Esc or switching tabs locks the screen. The invigilator will unlock it for you.</li>
         <li>You can open other tabs only after you submit.</li>
       </ul>
       <p>{started ? 'The exam is open. Enter the code from the invigilator.' : 'Waiting for the admin to start the exam…'}</p>

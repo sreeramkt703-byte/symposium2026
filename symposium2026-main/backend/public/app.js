@@ -89,7 +89,7 @@ async function checkStatus() {
   } catch { /* ignore */ }
 }
 checkStatus()
-const poll = setInterval(checkStatus, 3000)
+let poll = setInterval(checkStatus, 3000)
 
 $('startBtn').onclick = async () => {
   team = $('team').value.trim()

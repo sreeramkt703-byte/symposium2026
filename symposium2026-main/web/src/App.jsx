@@ -9,6 +9,26 @@ const readSession = () => {
   try { return JSON.parse(localStorage.getItem(SESSION) || 'null') } catch { return null }
 }
 
+// Shown after submitting. Goes back to the login page by itself (or when the button is pressed).
+function Done({ team, onBack }) {
+  const [left, setLeft] = useState(10)
+  useEffect(() => {
+    const id = setInterval(() => setLeft((n) => n - 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+  useEffect(() => {
+    if (left <= 0) onBack()
+  }, [left, onBack])
+  return (
+    <div className="center">
+      <h1>Submitted</h1>
+      <p>Thank you, {team}. Your work was saved.</p>
+      <p>Going back to the login page in {Math.max(left, 0)} seconds…</p>
+      <button onClick={onBack}>Back to login now</button>
+    </div>
+  )
+}
+
 export default function App() {
   const saved = readSession()
   const [team, setTeam] = useState(saved?.team || '')
@@ -17,6 +37,18 @@ export default function App() {
   // 'resuming' = page was reloaded, asking the server whether this team still has a running exam
   const [stage, setStage] = useState(saved ? 'resuming' : 'login')
   const [err, setErr] = useState('')
+
+  // forget this team on this computer and show the login page again
+  const goLogin = () => {
+    localStorage.removeItem(SESSION)
+    if (team && examId) localStorage.removeItem('code:' + team + ':' + examId)
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    setTeam('')
+    setExamId(null)
+    setEndAt(0)
+    setErr('')
+    setStage('login')
+  }
 
   const resume = async () => {
     setErr('')
@@ -69,10 +101,5 @@ export default function App() {
       />
     )
   if (stage === 'exam') return <Exam team={team} examId={examId} endAt={endAt} onDone={() => setStage('done')} />
-  return (
-    <div className="center">
-      <h1>Submitted</h1>
-      <p>Thank you, {team}. You can now close this window.</p>
-    </div>
-  )
+  return <Done team={team} onBack={goLogin} />
 }
