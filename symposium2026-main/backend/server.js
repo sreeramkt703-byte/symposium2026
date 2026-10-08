@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const DURATION = 60 * 60 * 1000;
+const DURATION = 1 * 60 * 1000;
 const DATA = path.join(__dirname, 'data');
 const VIOLATIONS = path.join(DATA, 'violations.json');
 const SUBMISSIONS = path.join(DATA, 'submissions');
