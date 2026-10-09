@@ -1,8 +1,25 @@
-export default function LockScreen() {
+
+import React from "react";
+import "./LockScreen.css";
+
+export default function LockScreen({
+  reason = "A security violation was detected.",
+  team = "",
+}) {
   return (
-    <div className="lock">
-      <h2>Exam locked</h2>
-      <p>A restricted action was detected. Please wait, the invigilator will unlock your screen.</p>
-    </div>
-  )
+    <main className="exam-lock-screen">
+      <section className="exam-lock-card">
+        <div className="exam-lock-icon" aria-hidden="true">🔒</div>
+        <h1>Exam Locked</h1>
+        <p className="exam-lock-message">
+          Your exam session has been paused by the security system.
+        </p>
+        {team && <p className="exam-lock-team">Team: {team}</p>}
+        <p className="exam-lock-reason">{reason}</p>
+        <p className="exam-lock-help">
+          Please contact the exam administrator to request a review.
+        </p>
+      </section>
+    </main>
+  );
 }

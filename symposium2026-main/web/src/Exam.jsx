@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from './api.js'
 import { startSecurity, GUARD_SCRIPT } from './security/examSecurity.js'
-import CodeEditor from "./codeeditor.jsx";
+import { loadFiles, checkName, legacy, buildPage, langOf } from './site.js'
+import CodeEditor from './CodeEditor.jsx'
 import LockScreen from './LockScreen.jsx'
 import './Exam.css'
 
@@ -9,11 +10,11 @@ import './Exam.css'
 // JavaScript words, and nothing is sent anywhere. Set this to false to switch suggestions off completely.
 const ENABLE_SUGGESTIONS = true
 
-const FILES = [
-  { id: 'html', name: 'index.html', label: 'HTML', badge: '<>', color: '#e37933' },
-  { id: 'css', name: 'style.css', label: 'CSS', badge: '#', color: '#519aba' },
-  { id: 'js', name: 'script.js', label: 'JavaScript', badge: 'JS', color: '#cbcb41' },
-]
+const LANG = {
+  html: { badge: '<>', color: '#e37933', label: 'HTML' },
+  css: { badge: '#', color: '#519aba', label: 'CSS' },
+  js: { badge: 'JS', color: '#cbcb41', label: 'JavaScript' },
+}
 
 const fmt = (ms) => {
   const s = Math.max(0, Math.floor(ms / 1000))
@@ -32,6 +33,12 @@ const ProblemIcon = () => (
     <path d="M9 8h6M9 12h6M9 16h4" />
   </svg>
 )
+const NewFileIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
+    <path d="M3 1.5h6l4 4v9H3z" />
+    <path d="M8 8v4M6 10h4" />
+  </svg>
+)
 
 export default function Exam({ team, examId, endAt, onDone }) {
   const [questions, setQuestions] = useState([])
@@ -41,31 +48,54 @@ export default function Exam({ team, examId, endAt, onDone }) {
   const [submitErr, setSubmitErr] = useState('')
   const [saved, setSaved] = useState(false)
 
-  // editor layout
-  const [view, setView] = useState('explorer') // side bar: 'explorer' | 'problem' | null (hidden)
-  const [tabs, setTabs] = useState(['html', 'css', 'js'])
-  const [tab, setTab] = useState('html')
-  const [pos, setPos] = useState({ ln: 1, col: 1 })
-
+  // ---- the student's files: [{ id, name, content }] ----
   const codeKey = 'code:' + team + ':' + examId
-  const [code, setCode] = useState(
-    () => JSON.parse(localStorage.getItem(codeKey) || 'null') || { html: '<h1>Hello</h1>', css: '', js: '' }
-  )
-  const [shown, setShown] = useState(code) // what the output panel shows (updated a moment after typing)
+  const [store] = useState(() => loadFiles(localStorage.getItem(codeKey)))
+  const [files, setFiles] = useState(store.files)
+  const nextId = useRef(store.nextId)
+  const [shown, setShown] = useState(store.files) // what the output panel shows (updated a moment after typing)
+  const [page, setPage] = useState('index.html') // which html page the output panel shows
+
+  // ---- layout ----
+  const [view, setView] = useState('explorer') // side bar: 'explorer' | 'problem' | null (hidden)
+  const [tabs, setTabs] = useState(() => store.files.map((f) => f.id))
+  const [tab, setTab] = useState(store.files[0].id)
+  const [pos, setPos] = useState({ ln: 1, col: 1 })
+  const [edit, setEdit] = useState(null) // creating / renaming a file: { id (null = new), value, err }
+  const [delId, setDelId] = useState(null) // file waiting for "Delete?" confirmation
+  const [sideW, setSideW] = useState(250)
+  const [outW, setOutW] = useState(() => Math.round(window.innerWidth * 0.38))
+  const [drag, setDrag] = useState(null) // 'side' | 'out' while a divider is being dragged
 
   const lockedRef = useRef(false)
   const stopRef = useRef(() => {})
-  const codeRef = useRef(code)
+  const codeRef = useRef(files)
+  const shownRef = useRef(shown)
   const pollRef = useRef(null)
   const timerRef = useRef(null)
   const busyRef = useRef(false)
 
   useEffect(() => {
-    codeRef.current = code
-    localStorage.setItem(codeKey, JSON.stringify(code))
-    const t = setTimeout(() => setShown(code), 400)
+    codeRef.current = files
+    localStorage.setItem(codeKey, JSON.stringify({ files, nextId: nextId.current }))
+    const t = setTimeout(() => setShown(files), 400)
     return () => clearTimeout(t)
-  }, [code, codeKey])
+  }, [files, codeKey])
+
+  useEffect(() => { shownRef.current = shown }, [shown])
+
+  // clicking a link to another page inside the output panel opens that page
+  useEffect(() => {
+    const onMsg = (e) => {
+      const h = e.data && e.data.examNav
+      if (!h) return
+      const n = String(h).split(/[?#]/)[0].replace(/^\.?\//, '').toLowerCase()
+      const f = shownRef.current.find((x) => x.name.toLowerCase() === n && langOf(x.name) === 'html')
+      if (f) setPage(f.name)
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
 
   // Ctrl+S would open the browser's "save page" window and lock the screen, so it just shows "Saved"
   // (the code is saved automatically anyway). Ctrl+P and Ctrl+O are blocked for the same reason.
@@ -84,12 +114,37 @@ export default function Exam({ team, examId, endAt, onDone }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // dragging the dividers: left one resizes the side bar, right one resizes the output panel
+  useEffect(() => {
+    if (!drag) return
+    const move = (e) => {
+      if (drag === 'side') setSideW(Math.min(480, Math.max(150, e.clientX - 48)))
+      else {
+        const max = window.innerWidth - 48 - (view ? sideW : 0) - 200
+        setOutW(Math.min(max, Math.max(200, window.innerWidth - e.clientX)))
+      }
+    }
+    const up = () => setDrag(null)
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+    return () => {
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+    }
+  }, [drag, view, sideW])
+
   // Only finishes the exam when the SERVER confirms it saved the work.
   const finalize = async () => {
     if (busyRef.current) return { ok: false, reason: 'Please wait…' }
     busyRef.current = true
+    const all = codeRef.current
     const r = await api
-      .post('/api/submit', { team, examId, ...codeRef.current })
+      .post('/api/submit', {
+        team,
+        examId,
+        files: all.map(({ name, content }) => ({ name, content })),
+        ...legacy(all), // html / css / js too, for older admin pages
+      })
       .catch(() => ({ ok: false, reason: 'Cannot reach server' }))
     busyRef.current = false
     if (!r.ok) return r
@@ -162,7 +217,7 @@ export default function Exam({ team, examId, endAt, onDone }) {
     try { await document.documentElement.requestFullscreen() } catch { /* ignore */ }
   }
 
-  // open / close editor tabs
+  // ---- tabs ----
   const openFile = (id) => {
     setTabs((t) => (t.includes(id) ? t : [...t, id]))
     setTab(id)
@@ -175,11 +230,72 @@ export default function Exam({ team, examId, endAt, onDone }) {
   }
   const toggleView = (v) => setView((cur) => (cur === v ? null : v))
 
-  const current = FILES.find((f) => f.id === tab)
-  const preview = GUARD_SCRIPT + `<style>${shown.css}</style>${shown.html}<script>${shown.js}<\/script>`
+  // ---- creating, renaming and deleting files ----
+  const startNew = () => {
+    setView('explorer')
+    setEdit({ id: null, value: '', err: '' })
+  }
+  const startRename = (f) => {
+    if (f.name.toLowerCase() === 'index.html') return // index.html is the main page
+    setEdit({ id: f.id, value: f.name, err: '' })
+  }
+  const commitEdit = () => {
+    if (!edit) return
+    const err = checkName(edit.value, files, edit.id === null ? undefined : edit.id)
+    if (err) return setEdit({ ...edit, err })
+    const name = edit.value.trim()
+    if (edit.id === null) {
+      const id = nextId.current++
+      setFiles((fs) => [...fs, { id, name, content: '' }])
+      setTabs((t) => [...t, id])
+      setTab(id)
+    } else {
+      setFiles((fs) => fs.map((f) => (f.id === edit.id ? { ...f, name } : f)))
+    }
+    setEdit(null)
+  }
+  // first click shows "Delete?", a second click within 3 seconds deletes
+  const removeFile = (id) => {
+    if (files.length <= 1) return
+    if (delId !== id) {
+      setDelId(id)
+      setTimeout(() => setDelId((d) => (d === id ? null : d)), 3000)
+      return
+    }
+    setDelId(null)
+    const next = files.filter((f) => f.id !== id)
+    setFiles(next)
+    let open = tabs.filter((t) => t !== id)
+    if (open.length === 0) open = [next[0].id]
+    setTabs(open)
+    if (tab === id) setTab(open[open.length - 1])
+  }
+
+  const current = files.find((f) => f.id === tab) || files[0]
+  const lang = LANG[langOf(current.name)]
+
+  // output panel: pages = every .html file; links between them work
+  const pages = shown.filter((f) => langOf(f.name) === 'html').map((f) => f.name)
+  const pageNow = pages.find((p) => p.toLowerCase() === page.toLowerCase()) || pages[0]
+  const preview = buildPage(shown, pageNow, { prefix: GUARD_SCRIPT })
+
+  const editRow = edit && (
+    <div className="editrow">
+      <input
+        autoFocus
+        value={edit.value}
+        placeholder="name.html / .css / .js"
+        spellCheck={false}
+        onChange={(e) => setEdit({ ...edit, value: e.target.value, err: '' })}
+        onKeyDown={(e) => { if (e.key === 'Enter') commitEdit() }}
+        onBlur={() => setEdit(null)}
+      />
+      {edit.err && <div className="eerr">{edit.err}</div>}
+    </div>
+  )
 
   return (
-    <div className="vs">
+    <div className={'vs' + (drag ? ' dragging' : '')}>
       {/* title bar */}
       <div className="titlebar">
         <span className="brand">{'{ }'}</span>
@@ -206,43 +322,76 @@ export default function Exam({ team, examId, endAt, onDone }) {
 
         {/* side bar */}
         {view && (
-          <div className="sidebar">
-            {view === 'explorer' ? (
-              <>
-                <div className="sbtitle">EXPLORER</div>
-                <div className="folder">▾ WEBSITE</div>
-                {FILES.map((f) => (
-                  <div key={f.id} className={'file' + (tab === f.id ? ' sel' : '')} onClick={() => openFile(f.id)}>
-                    <span className="badge" style={{ color: f.color }}>{f.badge}</span>
-                    {f.name}
+          <>
+            <div className="sidebar" style={{ width: sideW }}>
+              {view === 'explorer' ? (
+                <>
+                  <div className="sbtitle">
+                    EXPLORER
+                    <span className="sbactions">
+                      <button title="New file" onClick={startNew}><NewFileIcon /></button>
+                    </span>
                   </div>
-                ))}
-              </>
-            ) : (
-              <>
-                <div className="sbtitle">PROBLEM STATEMENT</div>
-                <div className="problem">
-                  {questions.length === 0 && <p>Loading…</p>}
-                  {questions.map((q) => (
-                    <section key={q.id}>
-                      <h3>{q.title}</h3>
-                      <p>{q.description}</p>
-                    </section>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                  <div className="folder">▾ WEBSITE</div>
+                  {files.map((f) => {
+                    const L = LANG[langOf(f.name)]
+                    if (edit && edit.id === f.id) return <div key={f.id}>{editRow}</div>
+                    return (
+                      <div
+                        key={f.id}
+                        className={'file' + (tab === f.id ? ' sel' : '')}
+                        title="Click to open, double-click to rename"
+                        onClick={() => openFile(f.id)}
+                        onDoubleClick={() => startRename(f)}
+                      >
+                        <span className="badge" style={{ color: L.color }}>{L.badge}</span>
+                        <span className="fname">{f.name}</span>
+                        {f.name.toLowerCase() !== 'index.html' && (
+                          <span
+                            className={'del' + (delId === f.id ? ' sure' : '')}
+                            title="Delete file"
+                            onClick={(e) => { e.stopPropagation(); removeFile(f.id) }}
+                          >{delId === f.id ? 'Delete?' : '×'}</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {edit && edit.id === null && editRow}
+                </>
+              ) : (
+                <>
+                  <div className="sbtitle">PROBLEM STATEMENT</div>
+                  <div className="problem">
+                    {questions.length === 0 && <p>Loading…</p>}
+                    {questions.map((q) => (
+                      <section key={q.id}>
+                        <h3>{q.title}</h3>
+                        <p>{q.description}</p>
+                      </section>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div
+              className="splitter"
+              title="Drag to resize (double-click to reset)"
+              onMouseDown={(e) => { e.preventDefault(); setDrag('side') }}
+              onDoubleClick={() => setSideW(250)}
+            />
+          </>
         )}
 
         {/* editor */}
         <div className="editorgroup">
           <div className="tabs">
             {tabs.map((id) => {
-              const f = FILES.find((x) => x.id === id)
+              const f = files.find((x) => x.id === id)
+              if (!f) return null
+              const L = LANG[langOf(f.name)]
               return (
                 <div key={id} className={'tabitem' + (tab === id ? ' on' : '')} onClick={() => setTab(id)}>
-                  <span className="badge" style={{ color: f.color }}>{f.badge}</span>
+                  <span className="badge" style={{ color: L.color }}>{L.badge}</span>
                   {f.name}
                   {tabs.length > 1 && (
                     <span
@@ -256,12 +405,12 @@ export default function Exam({ team, examId, endAt, onDone }) {
             })}
           </div>
           <div className="editors">
-            {FILES.map((f) => (
+            {files.map((f) => (
               <div key={f.id} className="pane" style={{ display: tab === f.id ? 'block' : 'none' }}>
                 <CodeEditor
-                  lang={f.id}
-                  value={code[f.id]}
-                  onChange={(v) => setCode((c) => ({ ...c, [f.id]: v }))}
+                  lang={langOf(f.name)}
+                  value={f.content}
+                  onChange={(v) => setFiles((fs) => fs.map((x) => (x.id === f.id ? { ...x, content: v } : x)))}
                   onCursor={setPos}
                   visible={tab === f.id}
                   suggestions={ENABLE_SUGGESTIONS}
@@ -272,8 +421,23 @@ export default function Exam({ team, examId, endAt, onDone }) {
         </div>
 
         {/* output */}
-        <div className="output">
-          <div className="outhead">OUTPUT</div>
+        <div
+          className="splitter"
+          title="Drag to resize (double-click to reset)"
+          onMouseDown={(e) => { e.preventDefault(); setDrag('out') }}
+          onDoubleClick={() => setOutW(Math.round(window.innerWidth * 0.38))}
+        />
+        <div className="output" style={{ width: outW }}>
+          <div className="outhead">
+            OUTPUT
+            {pages.length > 1 && (
+              <span className="pages">
+                {pages.map((p) => (
+                  <button key={p} className={'pagebtn' + (p === pageNow ? ' on' : '')} onClick={() => setPage(p)}>{p}</button>
+                ))}
+              </span>
+            )}
+          </div>
           <iframe title="Output" sandbox="allow-scripts" srcDoc={preview} />
         </div>
       </div>
@@ -283,10 +447,11 @@ export default function Exam({ team, examId, endAt, onDone }) {
         <span>{saved ? '✓ Saved' : 'Auto-save on'}</span>
         <span className="sbright">
           {ENABLE_SUGGESTIONS && <span>Autocomplete: ↑ ↓ Enter / Tab</span>}
+          <span>Files: {files.length}</span>
           <span>Ln {pos.ln}, Col {pos.col}</span>
           <span>Spaces: 2</span>
           <span>UTF-8</span>
-          <span>{current.label}</span>
+          <span>{lang.label}</span>
         </span>
       </div>
 

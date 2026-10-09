@@ -1,0 +1,48 @@
+
+.exam-lock-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #101827;
+  color: #f8fafc;
+  font-family: system-ui, sans-serif;
+}
+
+.exam-lock-card {
+  width: min(100%, 480px);
+  padding: 36px 28px;
+  text-align: center;
+  border: 1px solid #374151;
+  border-radius: 20px;
+  background: #1f2937;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 25%);
+}
+
+.exam-lock-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.exam-lock-card h1 {
+  margin: 0 0 14px;
+  font-size: 30px;
+}
+
+.exam-lock-message,
+.exam-lock-reason,
+.exam-lock-help,
+.exam-lock-team {
+  line-height: 1.6;
+  color: #d1d5db;
+}
+
+.exam-lock-reason {
+  color: #fca5a5;
+  overflow-wrap: anywhere;
+}
+
+.exam-lock-help {
+  margin-top: 24px;
+  font-size: 14px;
+}
