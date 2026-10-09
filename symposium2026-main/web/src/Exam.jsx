@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from './api.js'
 import { startSecurity, GUARD_SCRIPT } from './security/examSecurity.js'
-import CodeEditor from './CodeEditor.jsx'
+import CodeEditor from "./codeeditor.jsx";
 import LockScreen from './LockScreen.jsx'
 import './Exam.css'
 
