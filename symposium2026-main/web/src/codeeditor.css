@@ -1,0 +1,15 @@
+.ce-root { display: flex; flex-direction: column; height: 100%; background: #1e1e1e; color: #ddd; }
+.ce-tabs { display: flex; align-items: center; background: #252526; overflow-x: auto; }
+.ce-tab { padding: 8px 14px; cursor: pointer; font-size: 14px; white-space: nowrap; border-right: 1px solid #1e1e1e; color: #aaa; }
+.ce-tab.active { background: #1e1e1e; color: #fff; border-top: 2px solid #007acc; }
+.ce-x { margin-left: 8px; color: #888; }
+.ce-x:hover { color: #f55; }
+.ce-add { background: none; border: none; color: #ddd; font-size: 20px; padding: 0 12px; cursor: pointer; }
+.ce-run { margin-left: auto; margin-right: 8px; background: #0e7a0d; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; }
+.ce-newfile { display: flex; gap: 8px; padding: 8px; background: #2d2d2d; }
+.ce-newfile input, .ce-newfile select { background: #1e1e1e; color: #ddd; border: 1px solid #555; padding: 4px 8px; }
+.ce-split { display: flex; flex: 1; min-height: 0; }
+.ce-code { background: #1e1e1e; color: #ddd; border: none; outline: none; resize: none; padding: 12px; font: 14px/1.5 Consolas, monospace; tab-size: 2; }
+.ce-divider { width: 6px; cursor: col-resize; background: #333; flex-shrink: 0; touch-action: none; }
+.ce-divider:hover { background: #007acc; }
+.ce-output { margin: 0; padding: 12px; overflow: auto; background: #181818; font: 13px/1.5 Consolas, monospace; white-space: pre-wrap; }

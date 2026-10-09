@@ -1,72 +1,129 @@
-import { useEffect, useRef } from 'react'
-import { highlight } from './highlight.js'
-import { attachSuggest } from './suggest.js'
+import { useState, useRef } from 'react';
+import './CodeEditor.css';
 
-// One code editor: line numbers on the left, coloured code drawn behind a transparent <textarea>.
-export default function CodeEditor({ lang, value, onChange, onCursor, visible, suggestions }) {
-  const taRef = useRef(null)
-  const preRef = useRef(null)
-  const gutRef = useRef(null)
+const LANGS = { python: 'py', javascript: 'js', java: 'java', c: 'c', cpp: 'cpp' };
 
-  // offline keyword / snippet suggestions (see suggest.js)
-  useEffect(() => {
-    if (!suggestions) return
-    return attachSuggest(taRef.current, () => lang)
-  }, [lang, suggestions])
+export default function CodeEditor({ files, setFiles, onRun, output, running }) {
+  const [active, setActive] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newLang, setNewLang] = useState('python');
+  const [split, setSplit] = useState(60); // editor width in %
+  const wrapRef = useRef(null);
 
-  const sync = () => {
-    const ta = taRef.current
-    preRef.current.scrollTop = ta.scrollTop
-    preRef.current.scrollLeft = ta.scrollLeft
-    gutRef.current.scrollTop = ta.scrollTop
-  }
+  const file = files[active] || files[0];
 
-  const cursor = () => {
-    const ta = taRef.current
-    const before = ta.value.slice(0, ta.selectionStart)
-    onCursor({ ln: before.split('\n').length, col: before.length - before.lastIndexOf('\n') })
-  }
+  const updateCode = (code) =>
+    setFiles(files.map((f, i) => (i === active ? { ...f, code } : f)));
 
-  // when this file's tab is opened: focus it and refresh the status bar
-  useEffect(() => {
-    if (!visible) return
-    taRef.current.focus()
-    cursor()
-    sync()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible])
+  const addFile = () => {
+    let name = newName.trim() || `file${files.length + 1}`;
+    if (!name.includes('.')) name += '.' + LANGS[newLang];
+    if (files.some((f) => f.name === name)) {
+      alert('A file with this name already exists');
+      return;
+    }
+    setFiles([...files, { name, lang: newLang, code: '' }]);
+    setActive(files.length);
+    setAdding(false);
+    setNewName('');
+  };
 
-  const lines = value.split('\n').length
+  const closeFile = (i, e) => {
+    e.stopPropagation();
+    if (files.length === 1) return;
+    if (!window.confirm(`Delete ${files[i].name}?`)) return;
+    setFiles(files.filter((_, idx) => idx !== i));
+    setActive(0);
+  };
+
+  const renameFile = (i) => {
+    const name = window.prompt('Rename file', files[i].name);
+    if (!name || !name.trim()) return;
+    setFiles(files.map((f, idx) => (idx === i ? { ...f, name: name.trim() } : f)));
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const t = e.target;
+      const s = t.selectionStart;
+      const v = t.value;
+      updateCode(v.slice(0, s) + '  ' + v.slice(t.selectionEnd));
+      requestAnimationFrame(() => (t.selectionStart = t.selectionEnd = s + 2));
+    }
+  };
+
+  const startDrag = (e) => {
+    e.preventDefault();
+    const move = (ev) => {
+      const r = wrapRef.current.getBoundingClientRect();
+      const pct = ((ev.clientX - r.left) / r.width) * 100;
+      setSplit(Math.min(80, Math.max(20, pct)));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   return (
-    <div className="ed">
-      <div className="gutter" ref={gutRef} aria-hidden="true">
-        {Array.from({ length: lines }, (_, i) => (
-          <div key={i}>{i + 1}</div>
+    <div className="ce-root">
+      <div className="ce-tabs">
+        {files.map((f, i) => (
+          <div
+            key={f.name}
+            className={'ce-tab' + (i === active ? ' active' : '')}
+            onClick={() => setActive(i)}
+            onDoubleClick={() => renameFile(i)}
+            title="Double-click to rename"
+          >
+            {f.name}
+            {files.length > 1 && (
+              <span className="ce-x" onClick={(e) => closeFile(i, e)}>×</span>
+            )}
+          </div>
         ))}
+        <button className="ce-add" onClick={() => setAdding(!adding)}>+</button>
+        <button className="ce-run" disabled={running} onClick={() => onRun(file, files)}>
+          {running ? 'Running…' : '▶ Run'}
+        </button>
       </div>
-      <div className="codewrap">
-        <pre className="hl" ref={preRef} aria-hidden="true" dangerouslySetInnerHTML={{ __html: highlight(lang, value) }} />
+
+      {adding && (
+        <div className="ce-newfile">
+          <input
+            placeholder="file name (e.g. utils)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addFile()}
+            autoFocus
+          />
+          <select value={newLang} onChange={(e) => setNewLang(e.target.value)}>
+            {Object.keys(LANGS).map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+          <button onClick={addFile}>Create</button>
+        </div>
+      )}
+
+      <div className="ce-split" ref={wrapRef}>
         <textarea
-          ref={taRef}
-          className="ta"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={sync}
-          onSelect={cursor}
-          onKeyUp={cursor}
-          onClick={cursor}
-          wrap="off"
+          className="ce-code"
+          style={{ width: `${split}%` }}
+          value={file.code}
+          onChange={(e) => updateCode(e.target.value)}
+          onKeyDown={onKeyDown}
           spellCheck={false}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          data-gramm="false"
-          data-gramm_editor="false"
-          data-enable-grammarly="false"
-          data-lt-active="false"
         />
+        <div className="ce-divider" onPointerDown={startDrag} />
+        <pre className="ce-output" style={{ width: `${100 - split}%` }}>
+          {output || 'Output will appear here...'}
+        </pre>
       </div>
     </div>
-  )
+  );
 }
