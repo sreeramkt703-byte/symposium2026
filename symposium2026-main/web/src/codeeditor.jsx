@@ -45,10 +45,12 @@ export default function CodeEditor({
     setActive(0);
   };
 
-  const renameFile = (i) => {
-    const name = window.prompt('Rename file', safeFiles[i].name);
-    if (!name || !name.trim()) return;
-    setFiles(safeFiles.map((f, idx) => (idx === i ? { ...f, name: name.trim() } : f)));
-  };
+const renameFile = (i) => {
+  const name = window.prompt('Rename file', safeFiles[i].name);
+  if (!name || !name.trim()) return;
+  setFiles(safeFiles.map((f, idx) =>
+    idx === i ? { ...f, name: name.trim() } : f
+  ));
+};
 
-  const
+}
