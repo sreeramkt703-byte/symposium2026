@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import './CodeEditor.css';
+import "./codeeditor.css";
 
 const LANGS = { python: 'py', javascript: 'js', java: 'java', c: 'c', cpp: 'cpp' };
 const DEFAULT_FILES = [{ name: 'main.py', lang: 'python', code: '' }];
