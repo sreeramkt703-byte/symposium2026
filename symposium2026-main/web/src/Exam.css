@@ -4,7 +4,7 @@
 
 /* title bar */
 .titlebar { display: flex; align-items: center; background: #3c3c3c; border-bottom: 1px solid #2b2b2b; padding: 0 10px; gap: 12px; }
-.brand { color: #3794ff; font-weight: 700; font-family: Consolas, monospace; }
+.brand { color: #0679fc; font-weight: 700; font-family: Consolas, monospace; }
 .title { flex: 1; text-align: center; color: #cccccc; }
 .titleright { display: flex; align-items: center; gap: 12px; }
 .titleright .err { color: #f48771; }
