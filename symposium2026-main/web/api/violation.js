@@ -1,5 +1,11 @@
 
 import { kv } from "@vercel/kv";
+import {
+  getExamState,
+  normalizeTeam,
+  recordViolation,
+  teamLockKey,
+} from "../lib/examStore.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,19 +14,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { type, team, timestamp } = req.body || {};
+    const { type, timestamp } = req.body || {};
+    const team = normalizeTeam(req.body?.team);
 
     if (
       typeof type !== "string" ||
       !/^[A-Z_]{1,40}$/.test(type) ||
-      typeof team !== "string" ||
-      !/^[a-zA-Z0-9_-]{1,80}$/.test(team)
+      !team
     ) {
       return res.status(400).json({ error: "Invalid violation data" });
     }
 
-    const key = `exam:lock:${team}`;
+    const key = teamLockKey(team);
     const existing = await kv.get(key);
+    const exam = await getExamState();
+    const violation = {
+      team,
+      type,
+      examId: Number.isSafeInteger(Number(req.body?.examId))
+        ? Number(req.body.examId)
+        : exam.id,
+      time: typeof timestamp === "string" ? timestamp : new Date().toISOString(),
+    };
 
     // Keep the first lock reason until an administrator unlocks the exam.
     if (!existing || existing.locked !== true) {
@@ -28,14 +43,12 @@ export default async function handler(req, res) {
         locked: true,
         team,
         reason: type,
-        lockedAt:
-          typeof timestamp === "string"
-            ? timestamp
-            : new Date().toISOString(),
+        lockedAt: violation.time,
       };
 
       await kv.set(key, state);
     }
+    await recordViolation(violation);
 
     return res.status(200).json({
       ok: true,

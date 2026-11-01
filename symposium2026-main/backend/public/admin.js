@@ -95,6 +95,7 @@ async function load() {
   ])
 
   $('state').textContent = exam.started ? 'running' : 'not started'
+  $('state').classList.toggle('running', Boolean(exam.started))
   $('codeRow').hidden = !exam.started
   $('code').textContent = exam.code || ''
   $('startBtn').hidden = exam.started

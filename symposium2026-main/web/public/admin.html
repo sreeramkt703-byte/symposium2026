@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exam admin</title>
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body>
+    <div id="login" class="center">
+      <h1>Exam admin</h1>
+      <input id="pw" type="password" placeholder="Admin secret" autocomplete="current-password" />
+      <p id="hint" hidden>Set ADMIN_SECRET in the Vercel project environment variables, then redeploy.</p>
+      <button id="loginBtn">Open dashboard</button>
+      <p id="err" class="err"></p>
+    </div>
+
+    <main id="panel" class="admin" hidden>
+      <h1>Exam control</h1>
+      <p>Status: <b id="state">not started</b></p>
+      <p id="codeRow" hidden>Exam code: <b id="code"></b></p>
+      <button id="startBtn">Start exam</button>
+      <button id="stopBtn" hidden>Stop exam</button>
+      <p id="dashboardErr" class="err" role="alert"></p>
+
+      <h2>Teams</h2>
+      <p>Joined: <b id="nJoined">0</b> | Submitted: <b id="nDone">0</b> | In progress: <b id="nRun">0</b> | Time over, not submitted: <b id="nOver">0</b></p>
+      <p>Click a submitted team to see its website and code.</p>
+      <table>
+        <thead><tr><th>Team</th><th>Started</th><th>Submitted</th><th>Time taken</th><th>Status</th><th>Violations</th><th>Lock</th></tr></thead>
+        <tbody id="teamRows"></tbody>
+      </table>
+
+      <h2>Violations (<span id="count">0</span>)</h2>
+      <table>
+        <thead><tr><th>Team</th><th>Type</th><th>Time</th><th>Action</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </main>
+
+    <section id="viewer" class="viewer" hidden>
+      <header>
+        <b id="viewTitle"></b>
+        <button id="closeViewer">Close</button>
+      </header>
+      <div class="code">
+        <nav>
+          <button data-v="html" class="on">HTML</button>
+          <button data-v="css">CSS</button>
+          <button data-v="js">JS</button>
+        </nav>
+        <pre id="codeView"></pre>
+      </div>
+      <iframe id="viewPreview" title="Submitted website" sandbox="allow-scripts"></iframe>
+    </section>
+    <script src="/admin.js"></script>
+  </body>
+</html>

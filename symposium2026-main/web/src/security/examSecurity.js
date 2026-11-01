@@ -1,27 +1,4 @@
 
-const API_BASE = "/api";
-
-async function reportViolation(type) {
-  try {
-    const response = await fetch(`${API_BASE}/violation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({
-        type,
-        team: sessionStorage.getItem("examTeam") || "default",
-        timestamp: new Date().toISOString(),
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Could not report exam violation:", response.status);
-    }
-  } catch (error) {
-    console.error("Exam security API is unavailable:", error);
-  }
-}
-
 export function startSecurity(onViolation, options = {}) {
   const {
     lockOnTabSwitch = true,
@@ -44,9 +21,7 @@ export function startSecurity(onViolation, options = {}) {
 
     lastViolation = type;
     lastViolationAt = now;
-
     onViolation?.(type);
-    void reportViolation(type);
   }
 
   function onVisibilityChange() {

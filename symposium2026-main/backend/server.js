@@ -73,7 +73,9 @@ const saveTeams = () => fs.writeFileSync(TEAMS_FILE, JSON.stringify(teams, null,
 let locks = readJson(LOCKS_FILE);
 const saveLocks = () => fs.writeFileSync(LOCKS_FILE, JSON.stringify(locks, null, 2));
 
-app.get('/api/questions', (req, res) => res.json(readJson(path.join(DATA, 'questions.json'))));
+app.get('/api/questions', (req, res) =>
+  res.json(readJson(path.join(__dirname, '..', 'web', 'data', 'questions.json')))
+);
 
 app.get('/api/exam/status', (req, res) =>
   res.json({ started: exam.started, code: isAdmin(req.query.password) ? exam.code : undefined })

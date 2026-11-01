@@ -9,33 +9,63 @@
 <body>
 
   <div id="login" class="center">
-    <h1>Admin</h1>
-    <input id="pw" type="password" placeholder="Admin password" />
-    <p id="hint" hidden>First time: type the password you want (min 4 characters). It will be saved as the admin password.</p>
-    <button id="loginBtn">Open dashboard</button>
-    <p id="err" class="err"></p>
+    <div class="status-card login-card">
+      <span class="eyebrow">Secure access</span>
+      <h1>Admin portal</h1>
+      <p>Manage the competition, monitor team activity, and maintain a smooth exam flow.</p>
+      <input id="pw" type="password" placeholder="Admin password" />
+      <p id="hint" hidden>First time: type the password you want (min 4 characters). It will be saved as the admin password.</p>
+      <button id="loginBtn">Open dashboard</button>
+      <p id="err" class="err"></p>
+    </div>
   </div>
 
   <div id="panel" class="admin" hidden>
-    <h1>Exam control</h1>
-    <p>Status: <b id="state">not started</b></p>
+    <div class="page-header">
+      <div class="header-meta">
+        <span class="eyebrow-muted">Control room</span>
+        <div class="title-stack">
+          <h1>Exam control</h1>
+          <p>Monitor execution, track teams, and manage any violations.</p>
+        </div>
+      </div>
+      <span id="state" class="state-badge">not started</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><span class="stat-label">Joined</span><span id="nJoined" class="stat-value">0</span></div>
+      <div class="stat-card"><span class="stat-label">Submitted</span><span id="nDone" class="stat-value">0</span></div>
+      <div class="stat-card"><span class="stat-label">In progress</span><span id="nRun" class="stat-value">0</span></div>
+      <div class="stat-card"><span class="stat-label">Timed out</span><span id="nOver" class="stat-value">0</span></div>
+    </div>
+
     <p id="codeRow" hidden>Exam code: <b id="code"></b></p>
-    <button id="startBtn">Start exam</button>
-    <button id="stopBtn" hidden>Stop exam</button>
+    <div class="action-row">
+      <button id="startBtn">Start exam</button>
+      <button id="stopBtn" hidden class="ghost">Stop exam</button>
+    </div>
 
-    <h2>Teams</h2>
-    <p>Joined: <b id="nJoined">0</b> | Submitted: <b id="nDone">0</b> | In progress: <b id="nRun">0</b> | Time over, not submitted: <b id="nOver">0</b></p>
-    <p>Click a submitted team to see its website and code.</p>
-    <table>
-      <thead><tr><th>Team</th><th>Started</th><th>Submitted</th><th>Time taken</th><th>Status</th><th>Violations</th><th>Lock</th></tr></thead>
-      <tbody id="teamRows"></tbody>
-    </table>
+    <div class="section-card">
+      <div class="section-head">
+        <h2>Teams</h2>
+        <p>Click a submitted team to review its website and code.</p>
+      </div>
+      <table>
+        <thead><tr><th>Team</th><th>Started</th><th>Submitted</th><th>Time taken</th><th>Status</th><th>Violations</th><th>Lock</th></tr></thead>
+        <tbody id="teamRows"></tbody>
+      </table>
+    </div>
 
-    <h2>Violations (<span id="count">0</span>)</h2>
-    <table>
-      <thead><tr><th>Team</th><th>Type</th><th>Time</th><th>Action</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
+    <div class="section-card">
+      <div class="section-head">
+        <h2>Violations</h2>
+        <p><span id="count">0</span> recorded</p>
+      </div>
+      <table>
+        <thead><tr><th>Team</th><th>Type</th><th>Time</th><th>Action</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Submitted work viewer -->

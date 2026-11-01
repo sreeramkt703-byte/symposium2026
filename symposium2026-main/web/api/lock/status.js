@@ -1,5 +1,6 @@
 
 import { kv } from "@vercel/kv";
+import { normalizeTeam, teamLockKey } from "../../lib/examStore.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -7,17 +8,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const team = req.query.team;
-
-  if (
-    typeof team !== "string" ||
-    !/^[a-zA-Z0-9_-]{1,80}$/.test(team)
-  ) {
+  const team = normalizeTeam(req.query.team);
+  if (!team) {
     return res.status(400).json({ error: "Invalid team" });
   }
 
   try {
-    const state = await kv.get(`exam:lock:${team}`);
+    const state = await kv.get(teamLockKey(team));
 
     return res.status(200).json({
       locked: state?.locked === true,

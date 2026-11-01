@@ -40,9 +40,9 @@ const NewFileIcon = () => (
   </svg>
 )
 
-export default function Exam({ team, examId, endAt, onDone }) {
+export default function Exam({ team, examId, endAt, initialRemaining, onDone }) {
   const [questions, setQuestions] = useState([])
-  const [left, setLeft] = useState(Math.max(0, endAt - Date.now()))
+  const [left, setLeft] = useState(initialRemaining)
   const [locked, setLocked] = useState(false)
   const [sure, setSure] = useState(false)
   const [submitErr, setSubmitErr] = useState('')
@@ -156,6 +156,13 @@ export default function Exam({ team, examId, endAt, onDone }) {
     return r
   }
 
+  async function unlock() {
+    clearInterval(pollRef.current)
+    lockedRef.current = false
+    setLocked(false)
+    try { await document.documentElement.requestFullscreen() } catch { /* ignore */ }
+  }
+
   // First click asks "Click again to confirm", second click submits.
   const onSubmitClick = async () => {
     if (!sure) {
@@ -209,13 +216,6 @@ export default function Exam({ team, examId, endAt, onDone }) {
     return () => { clearInterval(timerRef.current); clearInterval(pollRef.current); stopRef.current() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const unlock = async () => {
-    clearInterval(pollRef.current)
-    lockedRef.current = false
-    setLocked(false)
-    try { await document.documentElement.requestFullscreen() } catch { /* ignore */ }
-  }
 
   // ---- tabs ----
   const openFile = (id) => {

@@ -20,20 +20,25 @@ function Done({ team, onBack }) {
     if (left <= 0) onBack()
   }, [left, onBack])
   return (
-    <div className="center">
-      <h1>Submitted</h1>
-      <p>Thank you, {team}. Your work was saved.</p>
-      <p>Going back to the login page in {Math.max(left, 0)} seconds…</p>
-      <button onClick={onBack}>Back to login now</button>
+    <div className="center app-status">
+      <div className="status-card">
+        <span className="eyebrow success">Submission received</span>
+        <h1>Submitted</h1>
+        <p>Thank you, {team}. Your work was saved.</p>
+        <p className="supporting-text">Going back to the login page in {Math.max(left, 0)} seconds…</p>
+        <button onClick={onBack}>Back to login now</button>
+      </div>
     </div>
   )
 }
 
 export default function App() {
-  const saved = readSession()
+  const [saved] = useState(readSession)
   const [team, setTeam] = useState(saved?.team || '')
   const [examId, setExamId] = useState(saved?.examId || null)
   const [endAt, setEndAt] = useState(0)
+  const [remainingAtStart, setRemainingAtStart] = useState(0)
+  const [resumeAttempt, setResumeAttempt] = useState(0)
   // 'resuming' = page was reloaded, asking the server whether this team still has a running exam
   const [stage, setStage] = useState(saved ? 'resuming' : 'login')
   const [err, setErr] = useState('')
@@ -50,45 +55,61 @@ export default function App() {
     setStage('login')
   }
 
-  const resume = async () => {
-    setErr('')
-    const s = readSession()
-    if (!s) return setStage('login')
-    const r = await api.post('/api/exam/resume', s).catch(() => null)
-    if (!r) return setErr('Cannot reach server')
-    if (!r.ok) { localStorage.removeItem(SESSION); return setStage('login') }
-    setTeam(s.team)
-    setExamId(s.examId)
-    if (r.submitted) return setStage('done')
-    setEndAt(r.startedAt + 60 * 60 * 1000 + (Date.now() - r.serverNow))
-    setStage('resume')
-  }
-
   useEffect(() => {
-    if (stage === 'resuming') resume()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (stage !== 'resuming' || !saved) return
+
+    let active = true
+    api.post('/api/exam/resume', saved).catch(() => null).then((r) => {
+      if (!active) return
+      if (!r) return setErr('Cannot reach server')
+      if (!r.ok) {
+        localStorage.removeItem(SESSION)
+        setStage('login')
+        return
+      }
+
+      setTeam(saved.team)
+      setExamId(saved.examId)
+      if (r.submitted) {
+        setStage('done')
+        return
+      }
+      const resumedEndAt = r.startedAt + 60 * 60 * 1000 + (Date.now() - r.serverNow)
+      setEndAt(resumedEndAt)
+      setRemainingAtStart(Math.max(0, resumedEndAt - Date.now()))
+      setStage('resume')
+    })
+
+    return () => { active = false }
+  }, [stage, resumeAttempt, saved])
 
   // fullscreen needs a click, so after a reload the student presses Continue
   const continueExam = async () => {
     try { await document.documentElement.requestFullscreen() } catch { /* ignore */ }
+    setRemainingAtStart(Math.max(0, endAt - Date.now()))
     setStage('exam')
   }
 
   if (stage === 'resuming')
     return (
-      <div className="center">
-        <h1>Restoring your exam…</h1>
-        <p className="err">{err}</p>
-        {err && <button onClick={resume}>Retry</button>}
+      <div className="center app-status">
+        <div className="status-card">
+          <span className="eyebrow">Secure restore</span>
+          <h1>Restoring your exam…</h1>
+          <p className="err">{err}</p>
+          {err && <button onClick={() => { setErr(''); setResumeAttempt((attempt) => attempt + 1) }}>Retry</button>}
+        </div>
       </div>
     )
   if (stage === 'resume')
     return (
-      <div className="center">
-        <h1>Welcome back, {team}</h1>
-        <p>Your exam is still running and your code was saved. Press Continue to return in fullscreen.</p>
-        <button onClick={continueExam}>Continue exam</button>
+      <div className="center app-status">
+        <div className="status-card">
+          <span className="eyebrow info">Welcome back</span>
+          <h1>Welcome back, {team}</h1>
+          <p>Your exam is still running and your code was saved. Press Continue to return in fullscreen.</p>
+          <button onClick={continueExam}>Continue exam</button>
+        </div>
       </div>
     )
   if (stage === 'login')
@@ -96,10 +117,12 @@ export default function App() {
       <Login
         onStart={(t, id, end) => {
           localStorage.setItem(SESSION, JSON.stringify({ team: t, examId: id }))
-          setTeam(t); setExamId(id); setEndAt(end); setStage('exam')
+          setTeam(t); setExamId(id); setEndAt(end)
+          setRemainingAtStart(Math.max(0, end - Date.now()))
+          setStage('exam')
         }}
       />
     )
-  if (stage === 'exam') return <Exam team={team} examId={examId} endAt={endAt} onDone={() => setStage('done')} />
+  if (stage === 'exam') return <Exam team={team} examId={examId} endAt={endAt} initialRemaining={remainingAtStart} onDone={() => setStage('done')} />
   return <Done team={team} onBack={goLogin} />
 }
