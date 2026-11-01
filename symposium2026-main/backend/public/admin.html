@@ -44,17 +44,20 @@
       <button id="startBtn">Start exam</button>
       <button id="stopBtn" hidden class="ghost">Stop exam</button>
       <button id="zipAll">Download all (.zip)</button>
+      <button id="deleteAll" class="danger-button">Archive &amp; delete all</button>
     </div>
 
     <div class="section-card">
       <div class="section-head">
         <h2>Teams</h2>
-        <p>Click a submitted team to review its website and code.</p>
+        <p>Open a submission or download its ZIP. Bulk cleanup saves an archive first.</p>
       </div>
-      <table>
-        <thead><tr><th>Team</th><th>Started</th><th>Submitted</th><th>Time taken</th><th>Status</th><th>Violations</th><th>Lock</th><th>Remove</th></tr></thead>
-        <tbody id="teamRows"></tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Team</th><th>Started</th><th>Submitted</th><th>Time taken</th><th>Status</th><th>Violations</th><th>Lock</th><th>Open</th><th>Download ZIP</th><th>Remove</th></tr></thead>
+          <tbody id="teamRows"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="section-card">

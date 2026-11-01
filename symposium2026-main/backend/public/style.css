@@ -210,6 +210,15 @@ input:focus { outline: none; border-color: rgba(98, 216, 184, 0.8); box-shadow: 
   margin: 1.2rem 0 1.4rem;
 }
 
+.danger-button {
+  background: linear-gradient(135deg, #ff7a87 0%, #df485d 100%);
+  color: #fff;
+}
+
+.danger-button:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
 #codeRow {
   margin: 0.8rem 0 0;
   color: var(--muted);
@@ -223,6 +232,11 @@ input:focus { outline: none; border-color: rgba(98, 216, 184, 0.8); box-shadow: 
 .section-card {
   padding: 1.25rem 1.1rem;
   margin-top: 1.5rem;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
 }
 
 .section-head {

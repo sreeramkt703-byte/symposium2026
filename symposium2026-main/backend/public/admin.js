@@ -3,6 +3,7 @@ const DURATION = 60 * 60 * 1000
 let pw = ''
 let current = null
 let delArmed = ''
+let deleteAllArmed = false
 
 async function api(path, body) {
   const opts = body
@@ -87,6 +88,29 @@ function unlockCell(team, locked) {
   return b
 }
 
+function openCell(t) {
+  if (!t.hasSubmission) return '-'
+  const b = document.createElement('button')
+  b.textContent = 'Open'
+  b.onclick = (e) => {
+    e.stopPropagation()
+    openViewer(t)
+  }
+  return b
+}
+
+function downloadCell(t) {
+  if (!t.hasSubmission) return '-'
+  const b = document.createElement('button')
+  b.textContent = 'Download ZIP'
+  b.onclick = (e) => {
+    e.stopPropagation()
+    const filename = String(t.team).replace(/[^A-Za-z0-9_.-]/g, '_').replace(/^\.+/, '_').slice(0, 60) || 'team'
+    downloadZip('/api/zip', { team: t.team, examId: t.examId }, filename + '.zip')
+  }
+  return b
+}
+
 // ---------- delete one team name ----------
 function deleteCell(t) {
   const key = t.team + '|' + t.examId
@@ -144,9 +168,10 @@ async function load() {
       statusOf(t),
       t.violations,
       t.locked ? unlockCell(t.team, true) : '-',
+      openCell(t),
+      downloadCell(t),
       deleteCell(t),
-    ]),
-    teams.map((t) => (t.hasSubmission ? () => openViewer(t) : null))
+    ])
   )
 
   $('count').textContent = violations.length
@@ -196,13 +221,44 @@ async function downloadZip(url, body, filename) {
   if (!r) return alert('Cannot reach the backend')
   if (!(r.headers.get('content-type') || '').includes('zip')) {
     const j = await r.json().catch(() => ({}))
-    return alert(j.reason || 'No zip available')
+    alert(j.reason || 'No zip available')
+    return false
   }
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(await r.blob())
-  a.download = filename
+  const objectUrl = URL.createObjectURL(await r.blob())
+  a.href = objectUrl
+  const disposition = r.headers.get('content-disposition') || ''
+  const serverFilename = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+  a.download = filename || serverFilename || 'download.zip'
   a.click()
-  URL.revokeObjectURL(a.href)
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+  return true
 }
 
 $('zipAll').onclick = () => downloadZip('/api/zip/all', {}, 'all_submissions.zip')
+
+$('deleteAll').onclick = async () => {
+  const button = $('deleteAll')
+  if (!deleteAllArmed) {
+    deleteAllArmed = true
+    button.textContent = 'Confirm archive & delete all'
+    setTimeout(() => {
+      if (deleteAllArmed) {
+        deleteAllArmed = false
+        button.textContent = 'Archive & delete all'
+      }
+    }, 5000)
+    return
+  }
+
+  deleteAllArmed = false
+  button.disabled = true
+  button.textContent = 'Archiving…'
+  const downloaded = await downloadZip('/api/team/delete-all', {}, '')
+  button.disabled = false
+  button.textContent = 'Archive & delete all'
+  if (downloaded) {
+    alert('The archive was downloaded and saved on the server. All exam data and the current exam code were cleared.')
+    await load()
+  }
+}

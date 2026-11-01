@@ -16,13 +16,17 @@ const DATA = path.join(__dirname, 'data');
 const VIOLATIONS = path.join(DATA, 'violations.json');
 const SUBMISSIONS = path.join(DATA, 'submissions');
 const ZIPS = path.join(DATA, 'zips');
+const ARCHIVES = path.join(DATA, 'archives');
 const EXAM_FILE = path.join(DATA, 'exam.json');
+const EXAMS_FILE = path.join(DATA, 'exams.json');
 const TEAMS_FILE = path.join(DATA, 'teams.json');
 const LOCKS_FILE = path.join(DATA, 'locks.json');
 const ENV_FILE = path.join(__dirname, '.env');
 fs.mkdirSync(SUBMISSIONS, { recursive: true });
 fs.mkdirSync(ZIPS, { recursive: true });
+fs.mkdirSync(ARCHIVES, { recursive: true });
 if (!fs.existsSync(VIOLATIONS)) fs.writeFileSync(VIOLATIONS, '[]');
+if (!fs.existsSync(EXAMS_FILE)) fs.writeFileSync(EXAMS_FILE, '[]');
 if (!fs.existsSync(TEAMS_FILE)) fs.writeFileSync(TEAMS_FILE, '[]');
 if (!fs.existsSync(LOCKS_FILE)) fs.writeFileSync(LOCKS_FILE, '{}');
 
@@ -68,6 +72,12 @@ app.post('/api/unlock', (req, res) => {
 /* ---------- exam state ---------- */
 let exam = fs.existsSync(EXAM_FILE) ? readJson(EXAM_FILE) : { started: false, code: null, id: null };
 const saveExam = () => fs.writeFileSync(EXAM_FILE, JSON.stringify(exam));
+let examHistory = readJson(EXAMS_FILE);
+const saveExamHistory = () => fs.writeFileSync(EXAMS_FILE, JSON.stringify(examHistory, null, 2));
+if (exam.started && exam.id && !examHistory.some((x) => x.id === exam.id)) {
+  examHistory.push({ id: exam.id, code: exam.code, startedAt: exam.id, stoppedAt: null });
+  saveExamHistory();
+}
 
 let teams = readJson(TEAMS_FILE);
 const saveTeams = () => fs.writeFileSync(TEAMS_FILE, JSON.stringify(teams, null, 2));
@@ -88,6 +98,8 @@ app.get('/api/exam/status', (req, res) =>
 app.post('/api/exam/start', (req, res) => {
   if (!isAdmin(req.body.password)) return res.status(401).json({ ok: false });
   exam = { started: true, code: String(crypto.randomInt(100000, 1000000)), id: Date.now() };
+  examHistory.push({ id: exam.id, code: exam.code, startedAt: exam.id, stoppedAt: null });
+  saveExamHistory();
   saveExam();
   locks = {};
   saveLocks();
@@ -96,6 +108,10 @@ app.post('/api/exam/start', (req, res) => {
 
 app.post('/api/exam/stop', (req, res) => {
   if (!isAdmin(req.body.password)) return res.status(401).json({ ok: false });
+  const stoppedAt = Date.now();
+  const currentRun = examHistory.find((x) => x.id === exam.id);
+  if (currentRun) currentRun.stoppedAt = stoppedAt;
+  saveExamHistory();
   exam = { started: false, code: null, id: null };
   saveExam();
   locks = {};
@@ -256,6 +272,87 @@ app.post('/api/zip/all', (req, res) => {
   const zip = createZip(entries);
   try { fs.writeFileSync(path.join(ZIPS, 'ALL_' + examId + '.zip'), zip); } catch (e) { console.log('Could not save zip:', e.message); }
   res.set({ 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="all_submissions.zip"' });
+  res.send(zip);
+});
+
+// Archive all exam data before clearing it. The archive is retained on the server and downloaded by the admin.
+app.post('/api/team/delete-all', (req, res) => {
+  if (!isAdmin(req.body.password)) return res.status(401).json({ ok: false });
+
+  const archivedAt = new Date();
+  const archiveName = `all-exams-${archivedAt.toISOString().replace(/[:.]/g, '-')}-${crypto.randomBytes(4).toString('hex')}.zip`;
+  const archivePath = path.join(ARCHIVES, archiveName);
+  const violations = readJson(VIOLATIONS);
+  const archiveDetails = {
+    format: 'symposium2026-exam-archive',
+    version: 1,
+    archivedAt: archivedAt.toISOString(),
+    exam,
+    examHistory,
+    teams,
+    locks,
+    violations,
+  };
+  const entries = [
+    { name: 'archive-details.json', data: JSON.stringify(archiveDetails, null, 2) },
+    { name: 'state/exam.json', data: JSON.stringify(exam, null, 2) },
+    { name: 'state/exams.json', data: JSON.stringify(examHistory, null, 2) },
+    { name: 'state/teams.json', data: JSON.stringify(teams, null, 2) },
+    { name: 'state/locks.json', data: JSON.stringify(locks, null, 2) },
+    { name: 'state/violations.json', data: JSON.stringify(violations, null, 2) },
+  ];
+
+  const addDirectoryToArchive = (directory, prefix) => {
+    for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
+      const source = path.join(directory, item.name);
+      const name = prefix + '/' + safeSeg(item.name);
+      if (item.isFile()) entries.push({ name, data: fs.readFileSync(source) });
+      else if (item.isDirectory()) addDirectoryToArchive(source, name);
+      else throw new Error(`Unsupported file type in ${directory}`);
+    }
+  };
+
+  let zip;
+  try {
+    addDirectoryToArchive(SUBMISSIONS, 'submissions');
+    addDirectoryToArchive(ZIPS, 'zips');
+    zip = createZip(entries);
+    fs.writeFileSync(archivePath, zip, { flag: 'wx' });
+  } catch (e) {
+    console.error('Could not archive exam data:', e.message);
+    return res.status(500).json({ ok: false, reason: 'Could not create the archive. No data was deleted.' });
+  }
+
+  try {
+    for (const directory of [SUBMISSIONS, ZIPS]) {
+      for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
+        const target = path.join(directory, item.name);
+        if (item.isDirectory()) fs.rmSync(target, { recursive: true });
+        else fs.unlinkSync(target);
+      }
+    }
+    teams = [];
+    saveTeams();
+    locks = {};
+    saveLocks();
+    fs.writeFileSync(VIOLATIONS, '[]');
+    examHistory = [];
+    saveExamHistory();
+    exam = { started: false, code: null, id: null };
+    saveExam();
+  } catch (e) {
+    console.error('Archive saved, but could not clear all exam data:', e.message);
+    return res.status(500).json({
+      ok: false,
+      reason: `Archive saved as ${archiveName}, but cleanup was incomplete: ${e.message}`,
+    });
+  }
+
+  console.log('Admin archived and cleared all exam data:', archiveName);
+  res.set({
+    'Content-Type': 'application/zip',
+    'Content-Disposition': `attachment; filename="${archiveName}"`,
+  });
   res.send(zip);
 });
 
