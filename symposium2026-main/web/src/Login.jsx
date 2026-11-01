@@ -35,8 +35,8 @@ export default function Login({ onStart }) {
       <div className="auth-card">
         <div className="auth-intro">
           <div className="brand-row">
-            <span className="brand-mark">S</span>
-            <span>Symposium 2026</span>
+            <span className="brand-mark">W</span>
+               <span>Web Coding</span>
           </div>
           <p className="eyebrow">Coding challenge</p>
           <h1>Web Development Competition</h1>
