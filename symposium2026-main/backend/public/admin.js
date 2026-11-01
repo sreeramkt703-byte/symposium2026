@@ -157,3 +157,24 @@ $('closeViewer').onclick = () => {
 
 $('startBtn').onclick = () => api('/api/exam/start', { password: pw }).then(load)
 $('stopBtn').onclick = () => api('/api/exam/stop', { password: pw }).then(load)
+
+// ---------- download the students' code as .zip ----------
+async function downloadZip(url, body, filename) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pw, ...body }),
+  }).catch(() => null)
+  if (!r) return alert('Cannot reach the backend')
+  if (!(r.headers.get('content-type') || '').includes('zip')) {
+    const j = await r.json().catch(() => ({}))
+    return alert(j.reason || 'No zip available')
+  }
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(await r.blob())
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
+$('zipAll').onclick = () => downloadZip('/api/zip/all', {}, 'all_submissions.zip')

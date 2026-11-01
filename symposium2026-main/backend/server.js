@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const fs = require('fs');
+const { createZip, entriesOf, safeSeg } = require('./zip');
 
 const app = express();
 app.use(cors());
@@ -14,16 +15,19 @@ const DURATION = 60 * 60 * 1000;
 const DATA = path.join(__dirname, 'data');
 const VIOLATIONS = path.join(DATA, 'violations.json');
 const SUBMISSIONS = path.join(DATA, 'submissions');
+const ZIPS = path.join(DATA, 'zips');
 const EXAM_FILE = path.join(DATA, 'exam.json');
 const TEAMS_FILE = path.join(DATA, 'teams.json');
 const LOCKS_FILE = path.join(DATA, 'locks.json');
 const ENV_FILE = path.join(__dirname, '.env');
 fs.mkdirSync(SUBMISSIONS, { recursive: true });
+fs.mkdirSync(ZIPS, { recursive: true });
 if (!fs.existsSync(VIOLATIONS)) fs.writeFileSync(VIOLATIONS, '[]');
 if (!fs.existsSync(TEAMS_FILE)) fs.writeFileSync(TEAMS_FILE, '[]');
 if (!fs.existsSync(LOCKS_FILE)) fs.writeFileSync(LOCKS_FILE, '{}');
 
 const readJson = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
+const subKey = (team, examId) => String(team).replace(/[^a-z0-9_-]/gi, '_') + '_' + examId;
 
 /* ---------- admin password ---------- */
 const clean = (s) => String(s || '').trim();
@@ -143,6 +147,12 @@ app.post('/api/submit', (req, res) => {
     path.join(SUBMISSIONS, name + '.json'),
     JSON.stringify({ team, html, css, js, time: new Date().toISOString() }, null, 2)
   );
+  // Keep a .zip of the team's code on the server too.
+  try {
+    fs.writeFileSync(path.join(ZIPS, name + '.zip'), createZip(entriesOf({ files: req.body.files, html, css, js })));
+  } catch (e) {
+    console.log('Could not save zip:', e.message);
+  }
   res.json({ ok: true });
 });
 
@@ -178,6 +188,44 @@ app.get('/api/submission', (req, res) => {
   const file = path.join(SUBMISSIONS, name + '.json');
   if (!fs.existsSync(file)) return res.json({ ok: false });
   res.json({ ok: true, ...readJson(file) });
+});
+
+// ---------- zip export: save and download the students' code as .zip ----------
+// One team's code as a .zip. POST, so the password never appears in the address bar.
+app.post('/api/zip', (req, res) => {
+  if (!isAdmin(req.body.password)) return res.status(401).json({ ok: false });
+  const file = path.join(SUBMISSIONS, subKey(req.body.team, Number(req.body.examId)) + '.json');
+  if (!fs.existsSync(file)) return res.json({ ok: false, reason: 'No submission found for this team' });
+  const zip = createZip(entriesOf(readJson(file)));
+  res.set({
+    'Content-Type': 'application/zip',
+    'Content-Disposition': 'attachment; filename="' + safeSeg(req.body.team) + '.zip"',
+  });
+  res.send(zip);
+});
+
+// Every submitted team of the latest exam in ONE .zip (one folder per team).
+// A copy is also saved on the server in backend/data/zips/ALL_<examId>.zip
+app.post('/api/zip/all', (req, res) => {
+  if (!isAdmin(req.body.password)) return res.status(401).json({ ok: false });
+  const examId = Number(req.body.examId) || Math.max(0, ...teams.map((t) => t.examId));
+  const entries = [];
+  const folders = new Set();
+  teams
+    .filter((t) => t.examId === examId && t.submittedAt)
+    .forEach((t) => {
+      const file = path.join(SUBMISSIONS, subKey(t.team, examId) + '.json');
+      if (!fs.existsSync(file)) return;
+      let folder = safeSeg(t.team);
+      while (folders.has(folder.toLowerCase())) folder += '_';
+      folders.add(folder.toLowerCase());
+      entriesOf(readJson(file)).forEach((e) => entries.push({ name: folder + '/' + e.name, data: e.data }));
+    });
+  if (!entries.length) return res.json({ ok: false, reason: 'Nobody has submitted yet' });
+  const zip = createZip(entries);
+  try { fs.writeFileSync(path.join(ZIPS, 'ALL_' + examId + '.zip'), zip); } catch (e) { console.log('Could not save zip:', e.message); }
+  res.set({ 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="all_submissions.zip"' });
+  res.send(zip);
 });
 
 app.post('/api/violation', (req, res) => {
