@@ -182,6 +182,37 @@ app.get('/api/teams', (req, res) => {
   );
 });
 
+// ---------- remove ONE team name completely (a test name, a typo, a wrong entry) ----------
+// Deletes its record, lock, saved code, zip and violations. The same name can join again afterwards.
+app.post('/api/team/delete', (req, res) => {
+  if (!isAdmin(req.body.password)) return res.status(401).json({ ok: false });
+  const team = String(req.body.team || '');
+  const examId = Number(req.body.examId);
+  const i = teams.findIndex((t) => t.team === team && t.examId === examId);
+  if (i === -1) return res.json({ ok: false, reason: 'Team not found' });
+  teams.splice(i, 1);
+  saveTeams();
+  if (locks[team]) { delete locks[team]; saveLocks(); }
+
+  // Saved files are named after the team; keep them if another team shares the same file name.
+  if (!teams.some((t) => t.examId === examId && subKey(t.team, examId) === subKey(team, examId))) {
+    for (const file of [path.join(SUBMISSIONS, subKey(team, examId) + '.json'), path.join(ZIPS, subKey(team, examId) + '.zip')]) {
+      try {
+        fs.unlinkSync(file);
+      } catch (e) {
+        if (e.code !== 'ENOENT') {
+          console.error('Could not delete team file:', e.message);
+          return res.status(500).json({ ok: false, reason: 'Team removed, but a saved file could not be deleted' });
+        }
+      }
+    }
+  }
+  const left = readJson(VIOLATIONS).filter((v) => !(v.team === team && v.examId === examId));
+  fs.writeFileSync(VIOLATIONS, JSON.stringify(left, null, 2));
+  console.log('Admin deleted team:', team);
+  res.json({ ok: true });
+});
+
 app.get('/api/submission', (req, res) => {
   if (!isAdmin(req.query.password)) return res.status(401).json({ ok: false });
   const name = String(req.query.team).replace(/[^a-z0-9_-]/gi, '_') + '_' + Number(req.query.examId);

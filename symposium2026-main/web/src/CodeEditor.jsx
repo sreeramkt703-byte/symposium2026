@@ -1,6 +1,7 @@
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import './codeeditor.css';
+import { highlight } from './highlight.js';
 
 // Basic autocomplete suggestions for HTML, CSS and JavaScript.
 const WORDS = {
@@ -29,11 +30,14 @@ export default function CodeEditor({
   suggestions = false
 }) {
   const textareaRef = useRef(null);
+  const gutterRef = useRef(null);
+  const highlightRef = useRef(null);
 
   const words = WORDS[lang] || [];
+  const lines = value.split('\n').length;
 
   // Update cursor position in the status bar.
-  const reportCursor = () => {
+  const reportCursor = useCallback(() => {
     const editor = textareaRef.current;
 
     if (!editor) return;
@@ -49,13 +53,13 @@ export default function CodeEditor({
       ln: lines.length,
       col: lines[lines.length - 1].length + 1
     });
-  };
+  }, [onCursor]);
 
   useEffect(() => {
     if (visible) {
       reportCursor();
     }
-  }, [visible]);
+  }, [visible, reportCursor]);
 
   // Handle Tab and basic autocomplete.
   const handleKeyDown = (event) => {
@@ -138,36 +142,46 @@ export default function CodeEditor({
         height: '100%'
       }}
     >
-      <textarea
-        ref={textareaRef}
-        className="ce-code"
-        aria-label={`${lang.toUpperCase()} code editor`}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoComplete="off"
-        autoCorrect="off"
-        value={value ?? ''}
-        onChange={(event) => {
-          onChange(event.target.value);
-          requestAnimationFrame(reportCursor);
-        }}
-        onClick={reportCursor}
-        onKeyUp={reportCursor}
-        onSelect={reportCursor}
-        onKeyDown={handleKeyDown}
-        style={{
-          width: '100%',
-          height: '100%',
-          minHeight: '240px',
-          flex: 1,
-          display: 'block',
-          boxSizing: 'border-box',
-          resize: 'none',
-          pointerEvents: 'auto',
-          userSelect: 'text'
-        }}
-      />
+      <div className="ce-editor">
+        <div className="ce-gutter" ref={gutterRef} aria-hidden="true">
+          {Array.from({ length: lines }, (_, index) => <div key={index}>{index + 1}</div>)}
+        </div>
+        <div className="ce-codewrap">
+          <pre
+            ref={highlightRef}
+            className="ce-highlight"
+            aria-hidden="true"
+            dangerouslySetInnerHTML={{ __html: highlight(lang, value) }}
+          />
+          <textarea
+            ref={textareaRef}
+            className="ce-code"
+            aria-label={`${lang.toUpperCase()} code editor`}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoComplete="off"
+            autoCorrect="off"
+            value={value ?? ''}
+            onChange={(event) => {
+              onChange(event.target.value);
+              requestAnimationFrame(reportCursor);
+            }}
+            onScroll={() => {
+              const editor = textareaRef.current;
+              if (!editor) return;
+              if (gutterRef.current) gutterRef.current.scrollTop = editor.scrollTop;
+              if (highlightRef.current) {
+                highlightRef.current.scrollTop = editor.scrollTop;
+                highlightRef.current.scrollLeft = editor.scrollLeft;
+              }
+            }}
+            onClick={reportCursor}
+            onKeyUp={reportCursor}
+            onSelect={reportCursor}
+            onKeyDown={handleKeyDown}
+          />
+        </div>
+      </div>
     </div>
   );
 }
-

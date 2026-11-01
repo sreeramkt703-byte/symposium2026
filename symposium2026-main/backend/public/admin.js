@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id)
 const DURATION = 60 * 60 * 1000
 let pw = ''
 let current = null
+let delArmed = ''
 
 async function api(path, body) {
   const opts = body
@@ -86,6 +87,32 @@ function unlockCell(team, locked) {
   return b
 }
 
+// ---------- delete one team name ----------
+function deleteCell(t) {
+  const key = t.team + '|' + t.examId
+  const b = document.createElement('button')
+  b.textContent = delArmed === key ? 'Sure? Click again' : 'Delete'
+  b.onclick = async (e) => {
+    e.stopPropagation() // don't open the submission viewer
+    if (delArmed !== key) {
+      delArmed = key
+      setTimeout(() => {
+        if (delArmed === key) {
+          delArmed = ''
+          load()
+        }
+      }, 4000)
+      return load()
+    }
+    delArmed = ''
+    b.disabled = true
+    const r = await api('/api/team/delete', { password: pw, team: t.team, examId: t.examId }).catch(() => ({ ok: false }))
+    if (!r.ok) alert(r.reason || 'Could not delete')
+    load()
+  }
+  return b
+}
+
 async function load() {
   const q = encodeURIComponent(pw)
   const [violations, exam, teams] = await Promise.all([
@@ -117,6 +144,7 @@ async function load() {
       statusOf(t),
       t.violations,
       t.locked ? unlockCell(t.team, true) : '-',
+      deleteCell(t),
     ]),
     teams.map((t) => (t.hasSubmission ? () => openViewer(t) : null))
   )

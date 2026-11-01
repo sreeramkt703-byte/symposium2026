@@ -35,7 +35,7 @@ function hlHtml(code) {
       out +=
         span('tk-pun', p[1]) +
         span('tk-tag', p[2]) +
-        run(p[3], /("[^"]*"|'[^']*')|([^\s=\/"'<>]+)/g, (x) => (x[1] ? 'tk-str' : 'tk-attr')) +
+        run(p[3], /("[^"]*"|'[^']*')|([^\s=/"'<>]+)/g, (x) => (x[1] ? 'tk-str' : 'tk-attr')) +
         span('tk-pun', p[4])
     }
   }
@@ -43,7 +43,7 @@ function hlHtml(code) {
 }
 
 function hlCss(code) {
-  const re = /\/\*[\s\S]*?\*\/|"[^"]*"|'[^']*'|[{}]|[^{}"'\/]+|[\s\S]/g
+  const re = /\/\*[\s\S]*?\*\/|"[^"]*"|'[^']*'|[{}]|[^{}"'/]+|[\s\S]/g
   const decl = /([\w-]+)(?=\s*:)|(#[0-9a-fA-F]{3,8}\b|-?\d*\.?\d+(?:px|em|rem|%|vh|vw|ms|s|deg|fr)?)/g
   let depth = 0
   let out = ''

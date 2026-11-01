@@ -298,11 +298,16 @@ export default function Exam({ team, examId, endAt, initialRemaining, onDone }) 
     <div className={'vs' + (drag ? ' dragging' : '')}>
       {/* title bar */}
       <div className="titlebar">
-        <span className="brand">{'{ }'}</span>
+        <span className="brand" aria-label="Symposium coding workspace">
+          <span className="brand-mark">{'{ }'}</span>
+          <span className="brand-name">Symposium IDE</span>
+        </span>
         <span className="title">{current.name} — {team}</span>
         <span className="titleright">
-          <span className="err">{submitErr}</span>
-          <span className={left < 5 * 60 * 1000 ? 'clock warn' : 'clock'}>⏱ {fmt(left)}</span>
+          <span className="err" role="status">{submitErr}</span>
+          <span className={left < 5 * 60 * 1000 ? 'clock warn' : 'clock'} aria-label={`Time remaining ${fmt(left)}`}>
+            <span aria-hidden="true">◷</span> {fmt(left)}
+          </span>
           <button className={sure ? 'submit sure' : 'submit'} onClick={onSubmitClick}>
             {sure ? 'Click again to confirm' : 'Submit'}
           </button>
@@ -429,7 +434,7 @@ export default function Exam({ team, examId, endAt, initialRemaining, onDone }) 
         />
         <div className="output" style={{ width: outW }}>
           <div className="outhead">
-            OUTPUT
+            <span className="out-title"><span className="out-indicator" />Preview</span>
             {pages.length > 1 && (
               <span className="pages">
                 {pages.map((p) => (
