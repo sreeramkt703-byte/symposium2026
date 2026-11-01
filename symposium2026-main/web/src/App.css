@@ -115,14 +115,115 @@ input:focus {
 }
 
 .auth-page {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px 20px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 18% 82%, rgba(35, 115, 98, 0.2), transparent 38%),
+    linear-gradient(155deg, #08131f 0%, #0e1f2d 52%, #091922 100%);
+}
+
+.auth-page::before,
+.auth-page::after {
+  position: absolute;
+  z-index: -1;
+  inset: -20%;
+  content: "";
+  pointer-events: none;
+}
+
+.auth-page::before {
+  background:
+    radial-gradient(ellipse at 22% 30%, rgba(97, 209, 171, 0.13), transparent 34%),
+    radial-gradient(ellipse at 78% 68%, rgba(80, 146, 202, 0.16), transparent 38%),
+    radial-gradient(ellipse at 48% 100%, rgba(147, 183, 118, 0.09), transparent 35%);
+  filter: blur(28px);
+  animation: nature-drift 26s ease-in-out infinite alternate;
+}
+
+.auth-page::after {
+  background: linear-gradient(115deg, transparent 30%, rgba(195, 235, 206, 0.035) 48%, transparent 65%);
+  transform: translateX(-30%);
+  animation: nature-light 32s ease-in-out infinite alternate;
+}
+
+.nature-motion {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nature-orb {
+  position: absolute;
+  display: block;
+  width: clamp(180px, 30vw, 430px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(176, 230, 199, 0.09);
+  border-radius: 48% 52% 64% 36% / 46% 41% 59% 54%;
+  background: radial-gradient(ellipse at 36% 34%, rgba(91, 177, 139, 0.12), rgba(31, 84, 83, 0.035) 48%, transparent 72%);
+  filter: blur(2px);
+  will-change: transform, border-radius;
+}
+
+.nature-orb-one {
+  top: -12%;
+  left: -8%;
+  animation: nature-float-one 30s ease-in-out infinite alternate;
+}
+
+.nature-orb-two {
+  right: -9%;
+  bottom: -34%;
+  width: clamp(240px, 42vw, 600px);
+  border-color: rgba(144, 187, 217, 0.08);
+  background: radial-gradient(ellipse at 54% 40%, rgba(77, 134, 155, 0.12), rgba(20, 66, 75, 0.035) 54%, transparent 72%);
+  animation: nature-float-two 36s ease-in-out infinite alternate;
+}
+
+.nature-orb-three {
+  left: 39%;
+  bottom: -54%;
+  width: clamp(200px, 35vw, 500px);
+  border-color: rgba(183, 203, 140, 0.06);
+  background: radial-gradient(ellipse at 50% 40%, rgba(153, 170, 105, 0.09), rgba(56, 88, 66, 0.025) 55%, transparent 73%);
+  animation: nature-float-three 42s ease-in-out infinite alternate;
+}
+
+@keyframes nature-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(0.98); }
+  to { transform: translate3d(2%, 1.5%, 0) scale(1.05); }
+}
+
+@keyframes nature-light {
+  from { transform: translateX(-35%) rotate(-5deg); }
+  to { transform: translateX(35%) rotate(5deg); }
+}
+
+@keyframes nature-float-one {
+  from { transform: translate3d(0, 0, 0) rotate(-8deg); border-radius: 48% 52% 64% 36% / 46% 41% 59% 54%; }
+  to { transform: translate3d(8vw, 7vh, 0) rotate(12deg); border-radius: 57% 43% 39% 61% / 52% 59% 41% 48%; }
+}
+
+@keyframes nature-float-two {
+  from { transform: translate3d(0, 0, 0) rotate(4deg); border-radius: 48% 52% 64% 36% / 46% 41% 59% 54%; }
+  to { transform: translate3d(-7vw, -8vh, 0) rotate(-10deg); border-radius: 38% 62% 56% 44% / 60% 40% 60% 40%; }
+}
+
+@keyframes nature-float-three {
+  from { transform: translate3d(0, 0, 0) rotate(-4deg); }
+  to { transform: translate3d(5vw, -5vh, 0) rotate(10deg); }
 }
 
 .auth-card {
+  position: relative;
+  z-index: 1;
   width: min(1120px, 100%);
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
@@ -275,5 +376,13 @@ input:focus {
   .auth-panel,
   .auth-intro {
     padding: 1.6rem 1.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-page::before,
+  .auth-page::after,
+  .nature-orb {
+    animation: none;
   }
 }

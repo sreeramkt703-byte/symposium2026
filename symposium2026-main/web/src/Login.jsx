@@ -32,6 +32,11 @@ export default function Login({ onStart }) {
 
   return (
     <div className="auth-page">
+      <div className="nature-motion" aria-hidden="true">
+        <span className="nature-orb nature-orb-one" />
+        <span className="nature-orb nature-orb-two" />
+        <span className="nature-orb nature-orb-three" />
+      </div>
       <div className="auth-card">
         <div className="auth-intro">
           <div className="brand-row">
