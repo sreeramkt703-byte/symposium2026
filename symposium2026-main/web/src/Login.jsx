@@ -32,10 +32,19 @@ export default function Login({ onStart }) {
 
   return (
     <div className="auth-page">
-      <div className="nature-motion" aria-hidden="true">
-        <span className="nature-orb nature-orb-one" />
-        <span className="nature-orb nature-orb-two" />
-        <span className="nature-orb nature-orb-three" />
+      <div className="auth-backdrop" aria-hidden="true">
+        <div className="auth-atmosphere">
+          <span className="auth-glow auth-glow-one" />
+          <span className="auth-glow auth-glow-two" />
+          <span className="auth-glow auth-glow-three" />
+          <span className="auth-orbit auth-orbit-one"><i /></span>
+          <span className="auth-orbit auth-orbit-two"><i /></span>
+          <span className="auth-orbit auth-orbit-three"><i /></span>
+          <span className="auth-particle auth-particle-one" />
+          <span className="auth-particle auth-particle-two" />
+          <span className="auth-particle auth-particle-three" />
+          <span className="auth-particle auth-particle-four" />
+        </div>
       </div>
       <div className="auth-card">
         <div className="auth-intro">
